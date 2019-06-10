@@ -99,12 +99,12 @@ class Alimama:
                 self.set_cookies(c_str)
 
     def set_cookies(self, c_str):
-        try:
-            cookies = json.loads(c_str)
-        except:
-            print('error cookie')
-        for k,v in cookies.items():
-            self.se.cookies.set(k, v)
+        print(c_str)
+        cookies = c_str.split("; ")
+        for k,v in enumerate(cookies):
+            kv = v.split("=")
+            print(kv)
+            self.se.cookies.set(kv[0], kv[1])
 
     # check login
     def check_login(self):
