@@ -18,7 +18,7 @@ import itchat
 class MyItchat:
     @itchat.msg_register(itchat.content.TEXT)
     def text_reply(msg):
-        print msg.text
+        print(msg.text)
 
     def run(self):
         itchat.auto_login()

@@ -135,7 +135,7 @@ class Alimama:
                 self.logger.debug(u"淘宝已经登录 不需要再次登录")
                 return 'login success'
             else:
-                print(u"请更新最新的cookie到cookies_taobao.txt文件中！！！")
+                print(u"请更新最新的cookie到cookies.txt文件中！！！")
                 raise Exception("need to refresh taobao cookie")
                 dlr = self.do_login()
                 if dlr is None:
