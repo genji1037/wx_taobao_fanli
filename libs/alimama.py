@@ -17,6 +17,7 @@ import re
 import sys
 import time
 import traceback
+from libs.config import conf
 from selenium import webdriver  
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.common.action_chains import ActionChains
@@ -200,12 +201,15 @@ class Alimama:
             self.logger.warning("error:{},trace:{}".format(str(e), trace))
 
     # 获取淘宝客链接
-    def get_tk_link(self, auctionid):
+    def get_tk_link(self, auctionid, _adzoneid):
         t = int(time.time() * 1000)
         tb_token = self.get_tb_token()
         pvid = '10_%s_1686_%s' % (self.myip, t)
         try:
+            # 获取推广位信息
             gcid, siteid, adzoneid = self.__get_tk_link_s1(auctionid, tb_token, pvid)
+            if len(_adzoneid) > 0:  # 如果有指定推广位，则使用指定的
+                adzoneid = _adzoneid
             self.__get_tk_link_s2(gcid, siteid, adzoneid, auctionid, tb_token, pvid)
             res = self.__get_tk_link_s3(auctionid, adzoneid, siteid, tb_token, pvid)
             return res
@@ -234,7 +238,38 @@ class Alimama:
         adzoneid = rj['data']['otherAdzones'][0]['sub'][0]['id']
         return gcid, siteid, adzoneid
 
-    # post数据
+    # 创建新的推广位
+    def create_adzone(self):
+        t = int(time.time() * 1000)
+        url = 'http://pub.alimama.com/common/adzone/selfAdzoneCreate.json'
+        data = {
+            'tag': '28',
+            'gcid': conf['gcid'],
+            'siteid': conf['siteid'],
+            'selectact': 'add',
+            'newadzonename': 'tg',
+            't': int(time.time() * 1000),
+            '_tb_token_': self.get_tb_token(),
+            'pvid': '10_%s_1686_%s' % (self.myip, t),
+        }
+        headers = {
+            'Host': 'pub.alimama.com',
+            'Content-Length': str(len(json.dumps(data))),
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Origin': 'http://pub.alimama.com',
+            'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Referer': 'http://pub.alimama.com/promo/search/index.htm',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'zh,en-US;q=0.8,en;q=0.6,zh-CN;q=0.4,zh-TW;q=0.2',
+        }
+
+        res = self.post_url(url, headers, data)
+        rj = json.load(res.text)
+        return rj['data']
+
+    # 从已有推广位获取
     def __get_tk_link_s2(self, gcid, siteid, adzoneid, auctionid, tb_token, pvid):
         url = 'http://pub.alimama.com/common/adzone/selfAdzoneCreate.json'
         data = {

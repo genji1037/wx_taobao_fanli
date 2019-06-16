@@ -22,6 +22,7 @@ import itchat
 import requests
 from itchat.content import *
 from libs import utils
+from libs import model
 from libs.alimama import Alimama
 
 logger = utils.init_logger()
@@ -41,20 +42,20 @@ def check_if_is_tb_link(msg):
             q = re.search(r'【.*】', msg.text).group().replace(u'【', '').replace(u'】', '')
             if u'打开👉天猫APP👈' in msg.text:
                 try:
-                    url = re.search(r'https://.* ',msg.text).group()
+                    url = re.search(r'https://.* ', msg.text).group()
                 except:
                     url = None
                     taokouling = re.search(r'￥.*?￥', msg.text).group()
             elif u'👉淘♂寳♀👈' in msg.text:
                 try:
-                    url = re.search(r'https://.* ',msg.text).group()
+                    url = re.search(r'https://.* ', msg.text).group()
                 except:
                     url = None
                     taokouling = re.search(r'€.*?€', msg.text)
 
             else:
                 try:
-                    url = re.search(r'https://.* ',msg.text).group()
+                    url = re.search(r'https://.* ', msg.text).group()
                 except:
                     url = None
             # 20170909新版淘宝分享中没有链接， 感谢网友jindx0713（https://github.com/jindx0713）提供代码和思路，现在使用第三方网站 http://www.taokouling.com 根据淘口令获取url
@@ -68,7 +69,7 @@ def check_if_is_tb_link(msg):
                 if url == "":
                     info = u'''%s
                     -----------------
-                    该宝贝暂时没有找到内部返利通道！亲您可以换个宝贝试试，也可以联系我们群内管理员帮着寻找有返现的类似商品
+                    该宝贝暂时没有找到内部返利通道！亲您可以换个宝贝试试。
                                 ''' % q
                     msg.user.send(info)
                     return
@@ -86,12 +87,60 @@ def check_if_is_tb_link(msg):
             price = res['zkPrice']
             fx = (price - coupon_amount) * tk_rate / 100
 
-            # get tk link
-            res1 = al.get_tk_link(auctionid)
+            # 分配fx
+            user_fx = round(fx / 2 * 100) / 100
+            robot_fx = fx - user_fx
+
+            # find user
+            itchat.get_friends(update=True)
+            user = itchat.search_friends(userName=msg['FromUserName'])
+            if user is None:
+                print('not friend yet add user %s' % msg['FromUserName'])
+                itchat.add_friend(msg['FromUserName'])
+            uid = user['RemarkName']
+
+            if (isinstance(uid, int) and uid > 0) or (isinstance(uid, str) and len(uid) > 0):
+                # 该用户已经备注过
+                # 检查用户是否在数据库里
+                got_user = model.User.select().where(model.User.id == uid)
+                if len(got_user) == 0:
+                    # 库里没有用户信息，则入库
+                    user_model = model.User.create(balance='0', total_amt='0')
+                    uid = user_model.id
+                    itchat.set_alias(user['UserName'], uid)
+                else:
+                    user_model = got_user[1]
+
+                # 检查是否有tb_id（有成交过的老用户）
+                if len(user_model.tb_id) > 0:
+                    # 使用默认推广位，就是第一个
+                    res1 = al.get_tk_link(auctionid)
+
+                print('all ready has alias %d' % uid)
+            else:  # new user create it
+                print('set new alias')
+                # 新用户需要绑定推广位
+                # 查询现存的free推广位
+                # free_adzones = model.Adzone.select().where(model.Adzone.state == 'free')
+                # cnt = free_adzones.count()
+                # if cnt == 0:
+                #     # 没有free推广位,则创建推广位并入库
+                #     adzone_info = al.create_adzone()
+                #     adzone_id = adzone_info['adzone_Id']
+                #     model.Adzone.create(adzone_id=adzone_id, state='bind')
+                # else:
+                #     adzone_id =free_adzones[1]['adzone_Id']
+
+                # res1 = al.get_tk_link(auctionid, adzone_id)
+                res1 = al.get_tk_link(auctionid, '')
+
+                user_model = model.User.create(balance='0', total_amt='0', adzone_id='')
+                uid = user_model.id
+                itchat.set_alias(user['UserName'], uid)
+
             tao_token = res1['taoToken']
             short_link = res1['shortLinkUrl']
             coupon_link = res1['couponLink']
-
             if coupon_link != "":
                 coupon_token = res1['couponLinkTaoToken']
                 res_text = '''
@@ -101,20 +150,8 @@ def check_if_is_tb_link(msg):
 请复制%s淘口令、打开淘宝APP下单
 -----------------
 【下单地址】%s
-                ''' % (q, fx, coupon_amount, coupon_token, short_link)
-            # res_text = u'''%s
-            # 【优惠券】%s元
-            # 请复制%s淘口令、打开淘宝APP下单
-            # -----------------
-            # 【下单地址】%s
-            #             ''' % (q, coupon_amount, coupon_token, short_link)
+                ''' % (q, user_fx, coupon_amount, coupon_token, short_link)
             else:
-                #                 res_text = u'''%s
-                # 【优惠券】%s元
-                # 请复制%s淘口令、打开淘宝APP下单
-                # -----------------
-                # 【下单地址】%s
-                #                                 ''' % (q, coupon_amount, tao_token, short_link)
                 res_text = '''
 %s
 【返现】%.2f元
@@ -122,14 +159,15 @@ def check_if_is_tb_link(msg):
 请复制%s淘口令、打开淘宝APP下单
 -----------------
 【下单地址】%s
-                                ''' % (q, fx, coupon_amount, tao_token, short_link)
+                                ''' % (q, user_fx, coupon_amount, tao_token, short_link)
+
             msg.user.send(res_text)
         except Exception as e:
             trace = traceback.format_exc()
             logger.warning("error:{},trace:{}".format(str(e), trace))
             info = u'''%s
 -----------------
-该宝贝暂时没有找到内部返利通道！亲您可以换个宝贝试试，也可以联系我们群内管理员帮着寻找有返现的类似商品
+该宝贝暂时没有找到内部返利通道！亲您可以换个宝贝试试。
             ''' % q
             msg.user.send(info)
 

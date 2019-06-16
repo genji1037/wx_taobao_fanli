@@ -12,9 +12,11 @@
 """
 
 from libs.wx_bot import WxBot
+from libs import model
 
 
 def run():
+    model.init()
     wb = WxBot()
     wb.run()
 

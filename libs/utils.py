@@ -11,6 +11,7 @@
 
 """
 import logging
+from datetime import datetime, timedelta, timezone
 
 
 class ColoredFormatter(logging.Formatter):
@@ -79,6 +80,11 @@ def init_logger():
     logger.addHandler(sh)
 
     return logger
+
+
+def cn_time():
+    utc_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
+    return utc_dt.astimezone(timezone(timedelta(hours=8)))
 
 
 def run():
