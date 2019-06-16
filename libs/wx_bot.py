@@ -102,21 +102,8 @@ def check_if_is_tb_link(msg):
             if (isinstance(uid, int) and uid > 0) or (isinstance(uid, str) and len(uid) > 0):
                 # 该用户已经备注过
                 # 检查用户是否在数据库里
-                got_user = model.User.select().where(model.User.id == uid)
-                if len(got_user) == 0:
-                    # 库里没有用户信息，则入库
-                    user_model = model.User.create(balance='0', total_amt='0')
-                    uid = user_model.id
-                    itchat.set_alias(user['UserName'], uid)
-                else:
-                    user_model = got_user[1]
+                res1 = al.get_tk_link(auctionid, '')
 
-                # 检查是否有tb_id（有成交过的老用户）
-                if len(user_model.tb_id) > 0:
-                    # 使用默认推广位，就是第一个
-                    res1 = al.get_tk_link(auctionid)
-
-                print('all ready has alias %d' % uid)
             else:  # new user create it
                 print('set new alias')
                 # 新用户需要绑定推广位
