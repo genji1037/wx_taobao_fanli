@@ -121,20 +121,19 @@ def check_if_is_tb_link(msg):
                 print('set new alias')
                 # 新用户需要绑定推广位
                 # 查询现存的free推广位
-                # free_adzones = model.Adzone.select().where(model.Adzone.state == 'free')
-                # cnt = free_adzones.count()
-                # if cnt == 0:
-                #     # 没有free推广位,则创建推广位并入库
-                #     adzone_info = al.create_adzone()
-                #     adzone_id = adzone_info['adzone_Id']
-                #     model.Adzone.create(adzone_id=adzone_id, state='bind')
-                # else:
-                #     adzone_id =free_adzones[1]['adzone_Id']
+                free_adzones = model.Adzone.select().where(model.Adzone.state == 'free')
+                cnt = free_adzones.count()
+                if cnt == 0:
+                    # 没有free推广位,则创建推广位并入库
+                    adzone_info = al.create_adzone()
+                    adzone_id = adzone_info['adzone_Id']
+                    model.Adzone.create(adzone_id=adzone_id, state='bind')
+                else:
+                    adzone_id =free_adzones[1]['adzone_Id']
 
-                # res1 = al.get_tk_link(auctionid, adzone_id)
-                res1 = al.get_tk_link(auctionid, '')
+                res1 = al.get_tk_link(auctionid, adzone_id)
 
-                user_model = model.User.create(balance='0', total_amt='0', adzone_id='')
+                user_model = model.User.create(balance='0', total_amt='0', adzone_id=adzone_id)
                 uid = user_model.id
                 itchat.set_alias(user['UserName'], uid)
 
