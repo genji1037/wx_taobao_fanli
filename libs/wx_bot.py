@@ -22,7 +22,7 @@ import itchat
 import requests
 from itchat.content import *
 from libs import utils
-from libs import model
+from libs.model import *
 from libs.alimama import Alimama
 
 logger = utils.init_logger()
@@ -88,54 +88,48 @@ def check_if_is_tb_link(msg):
             fx = (price - coupon_amount) * tk_rate / 100
 
             # 分配fx
-            user_fx = round(fx / 2 * 100) / 100
-            robot_fx = fx - user_fx
+            user_fx = round(fx * 50) / 100
 
             # find user
             itchat.get_friends(update=True)
-            user = itchat.search_friends(userName=msg['FromUserName'])
-            if user is None:
+            friend = itchat.search_friends(userName=msg['FromUserName'])
+            if friend is None:
                 print('not friend yet add user %s' % msg['FromUserName'])
                 itchat.add_friend(msg['FromUserName'])
-            uid = user['RemarkName']
+            friend_alias = friend['RemarkName']
 
-            if (isinstance(uid, int) and uid > 0) or (isinstance(uid, str) and len(uid) > 0):
-                # 该用户已经备注过
-                # 检查用户是否在数据库里
-                got_user = model.User.select().where(model.User.id == uid)
-                if len(got_user) == 0:
-                    # 库里没有用户信息，则入库
-                    user_model = model.User.create(balance='0', total_amt='0')
-                    uid = user_model.id
-                    itchat.set_alias(user['UserName'], uid)
-                else:
-                    user_model = got_user[1]
+            if (isinstance(friend_alias, int) and friend_alias > 0) or (
+                    isinstance(friend_alias, str) and len(friend_alias) > 0):  # 该用户已经备注过
+                try:  # 检查用户是否在数据库里
+                    user = User.get(User.id == friend_alias)
+                except User.DoesNotExist:
+                    user = User.create(balance='0', total_amt='0', adzone_id='', tb_id='')
+                    itchat.set_alias(friend['UserName'], user.id)
 
                 # 检查是否有tb_id（有成交过的老用户）
-                if len(user_model.tb_id) > 0:
+                if len(user.tb_id) > 0:
                     # 使用默认推广位，就是第一个
                     res1 = al.get_tk_link(auctionid)
 
-                print('all ready has alias %d' % uid)
+                print('all ready has alias %d' % user.id)
             else:  # new user create it
                 print('set new alias')
                 # 新用户需要绑定推广位
                 # 查询现存的free推广位
-                free_adzones = model.Adzone.select().where(model.Adzone.state == 'free')
-                cnt = free_adzones.count()
-                if cnt == 0:
+                try:
+                    free_adzone = Adzone.get(Adzone.state == 'free')
+                    adzone_id = free_adzone['adzone_Id']
+                except Adzone.DoesNotExist:
                     # 没有free推广位,则创建推广位并入库
                     adzone_info = al.create_adzone()
                     adzone_id = adzone_info['adzone_Id']
-                    model.Adzone.create(adzone_id=adzone_id, state='bind')
-                else:
-                    adzone_id =free_adzones[1]['adzone_Id']
+                    Adzone.create(adzone_id=adzone_id, state='bind')
 
                 res1 = al.get_tk_link(auctionid, adzone_id)
 
-                user_model = model.User.create(balance='0', total_amt='0', adzone_id=adzone_id)
+                user_model = User.create(balance='0', total_amt='0', adzone_id=adzone_id)
                 uid = user_model.id
-                itchat.set_alias(user['UserName'], uid)
+                itchat.set_alias(friend['UserName'], uid)
 
             tao_token = res1['taoToken']
             short_link = res1['shortLinkUrl']

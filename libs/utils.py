@@ -87,6 +87,19 @@ def cn_time():
     return utc_dt.astimezone(timezone(timedelta(hours=8)))
 
 
+def cn_date():
+    t = cn_time()
+    curr_cn_date = "{}-{}-{}".format(t.year, t.month, t.day)
+    return curr_cn_date
+
+
+def yesterday():
+    t = cn_time()
+    yd = t - timedelta(days=1)
+    yd_str = "{}-{}-{}".format(yd.year, yd.month, yd.day)
+    return yd_str
+
+
 def run():
     pass
 
