@@ -88,14 +88,10 @@ def check_if_is_tb_link(msg):
             fx = (price - coupon_amount) * tk_rate / 100
 
             # 分配fx
-            user_fx = round(fx * 50) / 100
+            user_fx = utils.allocate_bonus(fx)['user_bonus']
 
             # find user
-            itchat.get_friends(update=True)
-            friend = itchat.search_friends(userName=msg['FromUserName'])
-            if friend is None:
-                print('not friend yet add user %s' % msg['FromUserName'])
-                itchat.add_friend(msg['FromUserName'])
+            friend = find_friend(msg['FromUserName'])
             friend_alias = friend['RemarkName']
 
             if (isinstance(friend_alias, int) and friend_alias > 0) or (
@@ -165,6 +161,33 @@ def check_if_is_tb_link(msg):
             msg.user.send(info)
 
 
+# 提现
+def withdraw(msg):
+    if msg.text == "提现" or msg.text == "tx":
+        friend = find_friend(msg['FromUserName'])
+        friend_alias = friend['RemarkName']
+        balance = User.get(User.id == friend_alias).balance
+        if balance < 3:
+            return
+        with db.atomic():
+            Withdraw.create(uid=friend_alias, amount=balance, state='apply', apply_time=utils.cn_time(), done_time='')
+            User.update(balance=0).where(User.id == friend_alias)
+        res_text = '''
+【提现】%.2f元，正在路上，请耐心等待
+【余额】%.2f元
+        ''' % (balance, 0)
+        msg.user.send(res_text)
+
+
+def find_friend(user_name):
+    itchat.get_friends(update=True)
+    friend = itchat.search_friends(userName=user_name)
+    if friend is None:
+        print('not friend yet add user %s' % user_name)
+        itchat.add_friend(user_name)
+    return friend
+
+
 class WxBot(object):
     @itchat.msg_register([TEXT])
     def text_reply(msg):
@@ -172,9 +195,14 @@ class WxBot(object):
         check_if_is_tb_link(msg)
         # msg.user.send('%s: %s' % (msg.type, msg.text))
 
-    @itchat.msg_register(TEXT, isGroupChat=True)
-    def text_reply(msg):
-        check_if_is_tb_link(msg)
+    @itchat.msg_register([TEXT])
+    def withdraw_reply(msg):
+        print(msg.text)
+        withdraw(msg)
+
+    # @itchat.msg_register(TEXT, isGroupChat=True)
+    # def text_reply(msg):
+    #     check_if_is_tb_link(msg)
         # if msg.isAt:
         #     msg.user.send(u'@%s\u2005I received: %s' % (
         #         msg.actualNickName, msg.text))

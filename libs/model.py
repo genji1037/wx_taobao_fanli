@@ -52,7 +52,6 @@ class Order(Model):
     total_commission_rate = DecimalField()
     item_link = CharField()
     site_id = CharField()
-    tk_status_text = CharField()
     seller_shop_title = CharField()
     income_rate = DecimalField()
     total_commission_fee = DecimalField()
@@ -60,8 +59,6 @@ class Order(Model):
     robot_bonus = DecimalField()
     user_bonus = DecimalField()
     state = CharField()  # paid, recv, check
-    pay_time = DateTimeField()  # 支付时间
-    confirm_time = DateTimeField()  # 确认收货时间
 
     class Meta:
         database = db

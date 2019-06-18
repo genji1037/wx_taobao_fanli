@@ -12,6 +12,7 @@
 """
 import logging
 from datetime import datetime, timedelta, timezone
+from libs.config import conf
 
 
 class ColoredFormatter(logging.Formatter):
@@ -98,6 +99,12 @@ def yesterday():
     yd = t - timedelta(days=1)
     yd_str = "{}-{}-{}".format(yd.year, yd.month, yd.day)
     return yd_str
+
+
+def allocate_bonus(bonus):
+    user_bonus = round(bonus * conf['user_bonus_rate']) / 100
+    robot_bonus = round(bonus - user_bonus, 2)
+    return {'user_bonus': user_bonus, 'robot_bonus': robot_bonus}
 
 
 def run():
